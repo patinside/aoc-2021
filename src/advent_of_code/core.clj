@@ -68,16 +68,16 @@
        (apply *)))
 
 
-(def test-input
+(def day3-test-input
   "00100\n11110\n10110\n10111\n10101\n01111\n00111\n11100\n10000\n11001\n00010\n01010")
 
 (def data-3
   (str/split-lines
-    ;test-input
+    ;day3-test-input
     (data/input 2021 3)
     ))
 
-(defn manage-col
+(defn max-min-vals-of-col
   [col]
   (->> col
        frequencies
@@ -95,7 +95,7 @@
 (defn solution-day3-1
   []
   (let [min-max-pairs (->> (apply map vector data-3)
-                           (map manage-col))
+                           (map max-min-vals-of-col))
         mins-bin (->> min-max-pairs
                       (map second)
                       (reverse))
@@ -106,5 +106,40 @@
         max-dec (str-to-dec maxs-bin)
         ]
     ;min-max-pairs
-    (* min-dec max-dec)
-    ))
+    (* min-dec max-dec)))
+
+(defn most-common-val
+  [col]
+  (->> col
+       frequencies
+       (sort-by key)
+       (reverse)
+       (sort-by val >)
+       ffirst))
+
+(defn less-common-val
+  [col]
+  (->> col
+       frequencies
+       (sort-by key)
+       (sort-by val)
+       ffirst))
+
+(defn rating
+  [comp-fn acc rank]
+  (let [rest-cols (map #(apply str (drop rank %)) acc)
+        first-col (map first rest-cols)
+        val-to-filter (comp-fn first-col)
+        vals-to-keep (filter #(= (nth % rank) val-to-filter) acc)]
+    (if (= (count vals-to-keep) 1)
+      (first vals-to-keep)
+      (rating comp-fn vals-to-keep (inc rank)))))
+
+(defn solution-day3-2
+  []
+  (let [o2 (rating most-common-val data-3 0)
+        co2 (rating less-common-val data-3 0)
+        o2-dec (str-to-dec (reverse (map str o2)))
+        co2-dec (str-to-dec (reverse (map str co2)))
+        _ (println o2-dec co2-dec)]
+    (* o2-dec co2-dec)))
