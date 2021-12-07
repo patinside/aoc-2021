@@ -143,3 +143,229 @@
         co2-dec (str-to-dec (reverse (map str co2)))
         _ (println o2-dec co2-dec)]
     (* o2-dec co2-dec)))
+
+(def data4-test
+  "7,4,9,5,11,17,23,2,0,14,21,24,10,16,13,6,15,25,12,22,18,20,8,19,3,26,1
+
+  22 13 17 11 0
+  8  2 23  4 24
+  21  9 14 16  7
+  6 10  3 18  5
+  1 12 20 15 19
+
+  3 15  0  2 22
+  9 18 13 17  5
+  19  8  7 25 23
+  20 11 10 24  4
+  14 21 16 12  6
+
+  14 21 17 24  4
+  10 16 15  9 19
+  18  8 23 26 20
+  22 11 13  6  5
+  2  0 12  3  7")
+
+(def data4
+  (data/input 2021 4))
+
+(defn parse-card
+  [raw-card]
+  (let [lines (map #(remove empty? (str/split % #" ")) raw-card)
+        columns (apply map vector lines)]
+    (->> (concat lines columns)
+         (map #(zipmap % (repeat nil))))))
+
+(defn card-has-full-line?
+  [card]
+  (->> card
+       (map vals)
+       (some #(= % [true true true true true]))))
+
+(defn update-card
+  [card number]
+  (map #(if (contains? % number)
+          (assoc % number true)
+          %)
+       card))
+
+(defn update-cards
+  [cards number]
+  (map #(update-card % number) cards))
+
+(defn parse-data
+  [data]
+  (let [raw-data (->> (str/split data #"\n\n")
+                      (map #(str/split-lines %)))
+        numbers (str/split (ffirst raw-data) #",")
+        cards (map parse-card (rest raw-data))]
+    {:numbers numbers
+     :cards cards}))
+
+(defn get-nil-val-line
+  [line]
+  (->> (filter #(nil? (second %)) line)
+       (map first)))
+
+(defn sum-nil-keys
+  [card]
+  (->> (take 5 card)
+       (mapcat get-nil-val-line)
+       (map #(Integer/parseInt %))
+       (apply +)))
+
+(defn play-game
+  ([]
+   (let [{:keys [numbers cards]} (parse-data data4-test)]
+     (play-game cards numbers)))
+  ([cards numbers]
+   (let [current-number (first numbers)
+         updated-cards (update-cards cards current-number)
+         winner? (filter card-has-full-line? updated-cards)]
+     (if (or (seq winner?) (empty? numbers))
+       (* (sum-nil-keys (first winner?)) (Integer/parseInt current-number))
+       (play-game updated-cards (rest numbers))))))
+
+(defn play-game1
+  ([]
+   (let [{:keys [numbers cards]} (parse-data data4)]
+     (play-game1 cards numbers nil nil)))
+  ([cards numbers previous-winners previous-number]
+   (let [current-number (first numbers)
+         updated-cards (update-cards cards current-number)
+         [winners number] (if-let [new-winner (doto (seq (filter card-has-full-line? updated-cards)) println)]
+                            [new-winner current-number]
+                            [previous-winners previous-number])]
+     (if (seq winners)
+       (if (= 1 (count numbers))
+         (* (sum-nil-keys (first winners)) (Integer/parseInt number))
+         (recur (remove (set winners) updated-cards) (rest numbers) winners number))
+       (recur updated-cards (rest numbers) winners number)))))
+
+
+(def data5-test
+  "0,9 -> 5,9\n8,0 -> 0,8\n9,4 -> 3,4\n2,2 -> 2,1\n7,0 -> 7,4\n6,4 -> 2,0\n0,9 -> 2,9\n3,4 -> 1,4\n0,0 -> 8,8\n5,5 -> 8,2")
+
+(def data5
+  (data/input 2021 5))
+
+(defn parse-data-5
+  [raw]
+  (->> (str/split-lines raw)
+       (map #(str/split % #" -> "))
+       (map (fn [[a b]] [(vec (str/split a #","))
+                         (vec (str/split b #","))]))
+       (map (fn [[[x1 y1] [x2 y2]]] [[(Integer/parseInt x1)
+                                      (Integer/parseInt y1)]
+                                     [(Integer/parseInt x2)
+                                      (Integer/parseInt y2)]]))))
+
+(defn init-matrix
+  [max]
+  (-> (for [x (range 0 (inc max))
+            y (range 0 (inc max))]
+        [x y])
+      (zipmap (repeat 0))
+      (into (sorted-set))))
+
+(defn update-matrix
+  [matrix [[x1 y1] [x2 y2]]]
+  (cond
+    (= x1 x2) (reduce #(update %1 [x1 %2] inc) matrix (range (min y1 y2) (inc (max y1 y2))))
+    (= y1 y2) (reduce #(update %1 [%2 y1] inc) matrix (range (min x1 x2) (inc (max x1 x2))))
+    :else matrix))
+
+(defn solution5-1
+  []
+  (let [data (parse-data-5 data5)
+        max-val (apply max (flatten data))
+        matrix (init-matrix max-val)]
+    (->> (reduce update-matrix matrix data)
+         (filter #(> (second %) 1))
+         count)))
+
+(defn draw-line
+  [[[x1 y1] [x2 y2]]]
+  (let [sign-x (if (< x1 x2) 1 -1)
+        sign-y (if (< y1 y2) 1 -1)
+        dx (range x1 (+ sign-x x2) sign-x)
+        dy (range y1 (+ sign-y y2) sign-y)]
+    (map vector dx dy)))
+
+
+
+(defn update-matrix-2
+  [matrix [[x1 y1] [x2 y2]]]
+  (cond
+    (= x1 x2) (reduce #(update %1 [x1 %2] inc) matrix (range (min y1 y2) (inc (max y1 y2))))
+    (= y1 y2) (reduce #(update %1 [%2 y1] inc) matrix (range (min x1 x2) (inc (max x1 x2))))
+    :else (let [updated-pts (draw-line [[x1 y1] [x2 y2]])]
+            (reduce #(update %1 %2 inc) matrix updated-pts))))
+
+
+(defn solution5-2
+  []
+  (let [data (parse-data-5 data5)
+        max-val (apply max (flatten data))
+        matrix (init-matrix max-val)]
+    (->> (reduce update-matrix-2 matrix data)
+         (filter #(> (second %) 1))
+         count)))
+
+
+(def data6-test
+  "3,4,3,1,2")
+
+(defn parse-data6
+  [raw]
+  (map #(Integer/parseInt %) (str/split (str/trim raw) #",")))
+
+(def data6 (data/input 2021 6))
+
+(defn timer
+  [lanternfish]
+  (case lanternfish
+    0 6
+    (dec lanternfish)))
+
+(defn children
+  [lanternfishes]
+  (let [new-children (repeat (count (filter #{0} lanternfishes)) 8)]
+    new-children))
+
+(defn solution-day6-1
+  ([]
+   (solution-day6-1 (parse-data6 data6) 80))
+  ([lanternfishes day]
+   (let [new-children (children lanternfishes)
+         lanternfishes-aging (map timer lanternfishes)
+         lanternfishes-with-children (concat lanternfishes-aging new-children)
+         ;_ (println "day" (- 13 day) ": " lanternfishes-with-children)
+         ]
+     (if (zero? day)
+       (count lanternfishes)
+       (recur lanternfishes-with-children (dec day))))))
+
+
+(defn shift-ages
+  [lanternfishes]
+  (reduce-kv
+    (fn [acc k v]
+      (case k
+        0 (assoc (update acc 6 (fnil + 0) v) 8 v)
+        7 (update acc 6 (fnil + 0) v)
+        (assoc acc (- k 1) v)))
+    {}
+    lanternfishes))
+
+(defn parse-data6-2
+  [raw]
+  (frequencies (map #(Integer/parseInt %) (str/split (str/trim raw) #","))))
+
+(defn solution-day6-2
+  ([]
+   (solution-day6-2 (parse-data6-2 data6) 256))
+  ([lanternfishes day]
+   (let [lanternfishes-aging (shift-ages lanternfishes)]
+     (if (zero? day)
+       (apply + (vals lanternfishes))
+       (recur lanternfishes-aging (dec day))))))
