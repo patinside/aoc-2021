@@ -369,3 +369,42 @@
      (if (zero? day)
        (apply + (vals lanternfishes))
        (recur lanternfishes-aging (dec day))))))
+
+(def data7
+  (data/input 2021 7))
+
+(def data7-test "16,1,2,0,4,2,7,1,2,14")
+
+(defn parse-input7
+  [raw]
+  (map #(Integer/parseInt %) (str/split (str/trim raw) #",")))
+
+(defn fuel-consumption
+  [point crabs]
+  (apply + (map #(Math/abs (- point %)) crabs)))
+
+(defn solution7-1
+  []
+  (let [crabs (parse-input7 data7)
+        max-val (apply max crabs)
+        min-val (apply min crabs)
+        segment (range min-val max-val)]
+    (->> (reduce #(assoc %1 %2 (fuel-consumption %2 crabs)) {} segment)
+         (apply min-key val))))
+
+(defn consumption
+  [distance]
+  (apply + (range 1 (inc distance))))
+
+(defn fuel-consumption-2
+  [point crabs]
+  (apply + (map #(consumption (Math/abs (- point %))) crabs)))
+
+(defn solution7-2
+  []
+  (let [crabs (parse-input7 data7)
+        max-val (apply max crabs)
+        min-val (apply min crabs)
+        segment (range min-val max-val)]
+    (->> (reduce #(assoc %1 %2 (fuel-consumption-2 %2 crabs)) {} segment)
+         (apply min-key val))))
