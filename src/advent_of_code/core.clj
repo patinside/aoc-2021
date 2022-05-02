@@ -374,6 +374,7 @@
   (data/input 2021 7))
 
 (def data7-test "16,1,2,0,4,2,7,1,2,14")
+(def data7-bis "0,1,2000")
 
 (defn parse-input7
   [raw]
@@ -385,7 +386,7 @@
 
 (defn solution7-1
   []
-  (let [crabs (parse-input7 data7)
+  (let [crabs (parse-input7 data7-bis)
         max-val (apply max crabs)
         min-val (apply min crabs)
         segment (range min-val max-val)]
@@ -408,3 +409,161 @@
         segment (range min-val max-val)]
     (->> (reduce #(assoc %1 %2 (fuel-consumption-2 %2 crabs)) {} segment)
          (apply min-key val))))
+
+
+(def data8-test
+  "be cfbegad cbdgef fgaecd cgeb fdcge agebfd fecdb fabcd edb | fdgacbe cefdb cefbgd gcbe
+   edbfga begcd cbg gc gcadebf fbgde acbgfd abcde gfcbed gfec | fcgedb cgb dgebacf gc
+   fgaebd cg bdaec gdafb agbcfd gdcbef bgcad gfac gcb cdgabef | cg cg fdcagb cbg
+   fbegcd cbd adcefb dageb afcb bc aefdc ecdab fgdeca fcdbega | efabcd cedba gadfec cb
+   aecbfdg fbg gf bafeg dbefa fcge gcbea fcaegb dgceab fcbdga | gecf egdcabf bgf bfgea
+   fgeab ca afcebg bdacfeg cfaedg gcfdb baec bfadeg bafgc acf | gebdcfa ecba ca fadegcb
+   dbcfg fgd bdegcaf fgec aegbdf ecdfab fbedc dacgb gdcebf gf | cefg dcbef fcge gbcadfe
+   bdfegc cbegaf gecbf dfcage bdacg ed bedf ced adcbefg gebcd | ed bcgafe cdgba cbgef
+   egadfb cdbfeg cegd fecab cgb gbdefca cg fgcdab egfdb bfceg | gbdfcae bgc cg cgb
+   gcafb gcf dcaebfg ecagb gf abcdeg gaef cafbge fdbac fegbdc | fgae cfgab fg bagce")
+
+(def data8
+  (data/input 2021 8))
+
+(defn parse-data8
+  [raw]
+  (let [p-fn #(str/split (str/trim %) #" ")
+        ] (->> (str/split raw #"\n")
+               (map #(str/split % #"\|"))
+               (map (fn [[a b]] [(p-fn a) (p-fn b)])))))
+
+(defn solution8-1
+  []
+  (let [input (parse-data8 data8)]
+    (->> (map second input)
+         (mapcat #(map count %))
+         (filter #(some #{2 3 4 7} [%]))
+         (count))))
+
+(def real {1 #{"c" "f"}
+           7 #{"a" "c" "f"}
+           4 #{"b" "c" "d" "f"}
+           3 #{"a" "c" "d" "f" "g"}
+           2 #{"a" "c" "d" "e" "g"}
+           5 #{"a" "b" "d" "f" "g"}
+           0 #{"a" "b" "c" "e" "f" "g"}
+           9 #{"a" "b" "c" "d" "f" "g"}
+           6 #{"a" "b" "d" "e" "f" "g"}
+           8 #{"a" "b" "c" "d" "e" "f" "g"}})
+
+;(def mapping {"a"
+;              "b"
+;              "c"
+;              "d"
+;              "e"
+;              "f"
+;              "g"})
+
+(defn find-a
+  [patterns]
+  (let [group-5 (patterns 5)
+        group-6 (patterns 6)
+        one (first (patterns 2))
+        four (first (patterns 4))
+        seven (first (patterns 3))
+        eight (first (patterns 7))
+        a (remove one seven)
+        e (->> (map #(remove four %) group-5)
+               flatten
+               frequencies
+               (apply min-key val)
+               first)]
+    (assoc patterns "a" (first a) "e" e)))
+
+
+(defn manage-display
+  [display]
+  (let [patterns (group-by count (map set (first display)))]
+    (->> patterns
+         (find-a))))
+
+;1 - 7 => a
+;9 - 8 => e
+;e => f via 5 et 6
+;f => b
+; e => d
+
+;2 - 3 => ef
+;2 - 5 => cfg
+;3 - 5 =>
+
+(def data9-test "2199943210\n3987894921\n9856789892\n8767896789\n9899965678")
+
+(def data9 (data/input 2021 9))
+
+(defn parse-data9
+  [raw]
+  (->> (str/split-lines raw)
+       (map #(str/split % #""))
+       (map (fn [x] (into [] (map #(Integer/parseInt %) x))))
+       (into [])))
+
+(defn neighbours
+  [eight width point]
+  (let [deltas [[-1 0] [1 0] [0 -1] [0 1]]
+        new-xy (map #(vec (map + point %)) deltas)]
+    (filter (fn [[new-x new-y]]
+              (and (< -1 new-x eight)
+                   (< -1 new-y width))) new-xy)))
+
+(defn smallest-in-neighbourhood?
+  [matrix point eight width]
+  (let [neighbours (neighbours eight width point)
+        neighbours-vals (map #(get-in matrix %) neighbours)
+        point-val (get-in matrix point)]
+    (every? #(< point-val %) neighbours-vals)))
+
+(defn matrix-coordinates
+  [eight width]
+  (for [x (range 0 eight)
+        y (range 0 width)]
+    [x y]))
+
+(defn solution-day9-1
+  []
+  (let [matrix (parse-data9 data9)
+        eight (count matrix)
+        width (count (first matrix))
+        matrix-coord (matrix-coordinates eight width)]
+    (->> (filter #(smallest-in-neighbourhood? matrix % eight width) matrix-coord)
+         (map #(get-in matrix %))
+         (map inc)
+         (apply +))))
+
+
+
+(defn parse-data9-2
+  [raw]
+  (->> (into {} (map-indexed (fn [x line]
+                               (into {}
+                                     (map-indexed (fn [y v] [[x y] v]) line)))
+                             (parse-data9 raw)))
+       (remove #(= 9 (second %)))
+       (map first)))
+
+
+
+(defn adjacency
+  [adjacent]
+  (reduce (fn [acc [x y]] (let [neighbours (filter #(and (<= 0 (Math/abs (- x (first %))) 1)
+                                                         (<= 0 (Math/abs (- y (second %))) 1)
+                                                         (or (= x (first %)) (= y (second %)))
+                                                         (not= [x y] %)) adjacent)]
+                            (assoc acc [x y] neighbours))) {} adjacent))
+
+(defn neighbours9
+  [n graph visited]
+  (let [to-be-visited (remove (set visited) (get graph n))]
+    (if (seq to-be-visited)
+      (recur (first to-be-visited) graph (concat visited to-be-visited))
+      visited)))
+
+(def memoize-neighbours9
+  (memoize neighbours9))
+
